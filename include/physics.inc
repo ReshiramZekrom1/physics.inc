@@ -14,16 +14,13 @@
 	You should have received a copy of the GNU General Public License
 	along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
-#include <modelsizes>
+//#include <modelsizes>
 
 #pragma compress 1
 
 #if !defined _inc_y_iterate
-	#include <foreach>
-#endif
-
-#if defined COLANDREAS
-	#include <colandreas>
+	//#include <foreach>
+	#include <YSI_DATA/y_iterate>
 #endif
 
 #if !defined PHY_TIMER_INTERVAL
@@ -179,20 +176,30 @@ new
 
 static
 	cb_Connect;
+	
+
 
 public OnGameModeInit()
 {
-	SetTimer("PHY_CoreTimer", PHY_TIMER_INTERVAL, true);
+	//PHY_Timer = SetTimer("PHY_CoreTimer", PHY_TIMER_INTERVAL, true);
 	
-	#if defined COLANDREAS
-	CA_Init();
-	#endif
 
 	cb_Connect = funcidx("PHY_OnPlayerConnect") != -1;
 	if(funcidx("PHY_OnGameModeInit") != -1)
 		return CallLocalFunction("PHY_OnGameModeInit", "");
 	return 1;
 }
+public OnFilterScriptInit()
+{
+	//PHY_Timer = SetTimer("PHY_CoreTimer", PHY_TIMER_INTERVAL, true);
+	
+
+	cb_Connect = funcidx("PHY_OnPlayerConnect") != -1;
+	if(funcidx("PHY_OnFilterScriptInit") != -1)
+		return CallLocalFunction("PHY_OnFilterScriptInit", "");
+	return 1;
+}
+
 
 public OnPlayerConnect(playerid)
 {
@@ -207,15 +214,13 @@ forward PHY_CoreTimer();
 public PHY_CoreTimer()
 {
 	new
-		#if defined COLANDREAS
-		Float:mod,
+		Float:mod1,
 		Float:crx,
 		Float:cry,
 		Float:crz,
 		Float:cx,
 		Float:cy,
 		Float:cz,
-		#endif
 		
 		Float:x,
 		Float:y,
@@ -414,7 +419,6 @@ public PHY_CoreTimer()
 					}
 				}
 
-				#if defined COLANDREAS
 				if(PHY_IsObjectUsingColAndreasBounds(a))
 				{
 					if(PHY_GetObjectMode(a) == PHY_MODE_3D)
@@ -423,14 +427,14 @@ public PHY_CoreTimer()
 				
 				if(PHY_IsObjectUsingColAndreasCollisions(a))
 				{
-					mod = floatsqroot(PHY_Object[a][PHY_VX] * PHY_Object[a][PHY_VX] + PHY_Object[a][PHY_VY] * PHY_Object[a][PHY_VY]);
+					mod1 = floatsqroot(PHY_Object[a][PHY_VX] * PHY_Object[a][PHY_VX] + PHY_Object[a][PHY_VY] * PHY_Object[a][PHY_VY]);
 					cx = 0.0;
 					cy = 0.0;
 					cz = 0.0;
 					crx = 0.0;
 					cry = 0.0;
 					crz = 0.0;
-					CA_RayCastLineAngle(x1, y1, z1, x1 + PHY_Object[a][PHY_Size] * (PHY_Object[a][PHY_VX] / mod), y1 + PHY_Object[a][PHY_Size] * (PHY_Object[a][PHY_VY] / mod), z1, cx, cy, cz, crx, cry, crz);
+					CA_RayCastLineAngle(x1, y1, z1, x1 + PHY_Object[a][PHY_Size] * (PHY_Object[a][PHY_VX] / mod1), y1 + PHY_Object[a][PHY_Size] * (PHY_Object[a][PHY_VY] / mod1), z1, cx, cy, cz, crx, cry, crz);
 					if((cx != 0.0 || cy != 0.0 || cz != 0.0) && cx == cx && cy == cy && cz == cz && (crx != 0.0 || cry != 0.0) && crx == crx && cry == cry && crz == crz)
 					{
 						angle = atan2(-cry, crx);
@@ -447,7 +451,6 @@ public PHY_CoreTimer()
 						CallLocalFunction("PHY_OnObjectCollideWithSAWorld", "dfff", a, cx, cy, cz);
 					}
 				}
-				#endif
 				
 				if(!PHY_IsObjectGhostWithWalls(a))
 				{
@@ -482,7 +485,8 @@ public PHY_CoreTimer()
 							}
 						}
 						else
-							Iter_SafeRemove(ITER_Wall, w, w);
+							//Iter_SafeRemove(ITER_Wall, w, w);
+							Iter_Remove(ITER_Wall, w);
 					}
 				}
 				if(!PHY_IsObjectGhostWithCylinders(a))
@@ -522,7 +526,8 @@ public PHY_CoreTimer()
 							}
 						}
 						else
-							Iter_SafeRemove(ITER_Cylinder, c, c);
+							//Iter_SafeRemove(ITER_Cylinder, c, c);
+							Iter_Remove(ITER_Cylinder, c);
 					}
 				}
 				if(PHY_IsObjectCollidingWithPlayers(a))
@@ -591,7 +596,8 @@ public PHY_CoreTimer()
 			CallLocalFunction("PHY_OnObjectUpdate", "d", a);
 		}
 		else
-			Iter_SafeRemove(ITER_Object, a, a);
+			//Iter_SafeRemove(ITER_Object, a, a);
+			Iter_Remove(ITER_Object, a);
 	}
 	return 1;
 }
@@ -602,7 +608,8 @@ modelid - object's modelid, used to get its size with modelsizes include.
 mass - object's mass, it is like its weight and is used in collisions.
 size - object's sphere radius, taken from modelsizes.inc by default.
 mode - PHY_MODE_3D or PHY_MODE_2D. */
-stock PHY_InitObject(objectid, modelid = 0, Float:mass = 1.0, Float:size = FLOAT_NAN, mode = PHY_MODE_3D)
+//stock PHY_InitObject(objectid, modelid = 0, Float:mass = 1.0, Float:size = FLOAT_NAN, mode = PHY_MODE_3D)
+stock PHY_InitObject(objectid, Float:mass = 1.0, Float:size, mode = PHY_MODE_3D)
 {
 	if(IsValidObject(objectid))
 	{
@@ -621,13 +628,16 @@ stock PHY_InitObject(objectid, modelid = 0, Float:mass = 1.0, Float:size = FLOAT
 		PHY_Object[objectid][PHY_HighZBound] = FLOAT_INFINITY;
 		PHY_Object[objectid][PHY_BoundConst] = 0;
 		
-		if(size != size)
+		//MODELSIZE 
+		/*if(size != size)
 		{
 			if(modelid)
 				PHY_Object[objectid][PHY_Size] = GetColSphereRadius(modelid);
 		}
 		else
-			PHY_Object[objectid][PHY_Size] = size;
+			PHY_Object[objectid][PHY_Size] = size;*/
+			
+		PHY_Object[objectid][PHY_Size] = size;
 			
 		Iter_Add(ITER_Object, objectid);
 				
@@ -1070,7 +1080,6 @@ stock check_segment_intersection(Float:x1, Float:y1, Float:x2, Float:y2, Float:x
 	return ((0 - r < proj < v1_len + r) && ((x - xc) * (x - xc) + (y - yc) * (y - yc) < (r * r)));
 }
 
-#if defined COLANDREAS
 stock PHY_UpdateBounds(objectid, Float:x, Float:y, Float:z)
 {
 	new Float:unused, Float:bound;
@@ -1079,13 +1088,12 @@ stock PHY_UpdateBounds(objectid, Float:x, Float:y, Float:z)
 	if(bound != 0.0 && bound == bound)
 		PHY_Object[objectid][PHY_LowZBound] = bound + PHY_Object[objectid][PHY_Size];
 	bound = 0.0;
-	CA_RayCastLine(x, y, z, x, y, z + 1000.0, unused, unused, bound, unused, unused, unused);
+	CA_RayCastLine(x, y, z, x, y, z + 1000.0, unused, unused, bound);
 	if(bound > PHY_Object[objectid][PHY_LowZBound] && bound == bound)
 		PHY_Object[objectid][PHY_HighZBound] = bound - PHY_Object[objectid][PHY_Size];
 	else
 		PHY_Object[objectid][PHY_HighZBound] = FLOAT_INFINITY;
 }
-#endif
 
 stock FixRot(&Float:x, &Float:y, &Float:z)
 {
@@ -1118,11 +1126,11 @@ stock FixAngle(&Float:x)
 		x = 359.99;
 }
 
-stock PHY_vectorcrossp(Float:v1x, Float:v1y, Float:v1z, Float:v2x, Float:v2y, Float:v2z, &Float:c1, &Float:c2, &Float:c3)
+stock PHY_vectorcrossp(Float:v1x, Float:v1y, Float:v1z, Float:v2x, Float:v2y, Float:v2z, &Float:cc1, &Float:cc2, &Float:cc3)
 {
-	c1 = (v1y * v2z) - (v1z * v2y),
-	c2 = (v1z * v2x) - (v1x * v2z),
-	c3 = (v1x * v2y) - (v1y * v2x);
+	cc1 = (v1y * v2z) - (v1z * v2y),
+	cc2 = (v1z * v2x) - (v1x * v2z),
+	cc3 = (v1x * v2y) - (v1y * v2x);
 }
 
 stock PHY_QuatFromAxisAngle(Float:x, Float:y, Float:z, Float:angle, &Float:q_w, &Float:q_x, &Float:q_y, &Float:q_z)
@@ -1257,6 +1265,16 @@ stock PHY_GetRotationQuaternion(Float:x, Float:y, Float:z, &Float:qw, &Float:qx,
 #define OnGameModeInit PHY_OnGameModeInit
 
 forward OnGameModeInit();
+
+
+#if defined _ALS_OnFilterScriptInit
+	#undef OnFilterScriptInit
+#else
+	#define _ALS_OnFilterScriptInit
+#endif
+#define OnFilterScriptInit PHY_OnFilterScriptInit
+
+forward OnFilterScriptInit();
 
 
 #if defined _ALS_OnPlayerConnect
