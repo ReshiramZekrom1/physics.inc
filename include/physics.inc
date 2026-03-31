@@ -23,6 +23,14 @@
 	#include <YSI_DATA/y_iterate>
 #endif
 
+#if !defined _inc_streamer
+	#include <streamer>
+#endif
+
+#if defined COLANDREAS
+	#include <colandreas>
+#endif
+
 #if !defined PHY_TIMER_INTERVAL
 	#define PHY_TIMER_INTERVAL (20)
 #endif
@@ -32,6 +40,9 @@
 #if !defined PHY_MAX_CYLINDERS
 	#define PHY_MAX_CYLINDERS (512)
 #endif		
+#if !defined PHY_MAX_OBJECTS
+	#define PHY_MAX_OBJECTS (1024)
+#endif
 
 #define PHY_MODE_3D (0)
 #define PHY_MODE_2D (1)
@@ -51,7 +62,7 @@
 
 /* Callbacks */
 forward PHY_OnObjectUpdate(objectid);
-forward PHY_OnObjectCollideWithObject(object1, object2);
+forward PHY_OnObjectCOLWithObj(object1, object2);		// PHY_OnObjectCollideWithObject
 forward PHY_OnObjectCollideWithZBound(objectid, lowhigh); // low bound = 0, high bound = 1
 forward PHY_OnObjectCollideWithSAWorld(objectid, Float:cx, Float:cy, Float:cz);
 forward PHY_OnObjectCollideWithWall(objectid, wallid);
@@ -75,6 +86,7 @@ enum (<<= 1)
 
 enum E_PHY_OBJECT
 {
+	PHY_DynamicObject,
 	PHY_Properties,
 	PHY_World,
 	Float:PHY_Size,
@@ -108,8 +120,8 @@ enum E_PHY_OBJECT
 }
 
 new
-	PHY_Object[MAX_OBJECTS][E_PHY_OBJECT],
-	Iterator:ITER_Object<MAX_OBJECTS>;
+	PHY_Object[PHY_MAX_OBJECTS][E_PHY_OBJECT],
+	Iterator:ITER_Object<PHY_MAX_OBJECTS>;
 
 
 enum E_PHY_WALL
@@ -176,30 +188,30 @@ new
 
 static
 	cb_Connect;
-	
-
 
 public OnGameModeInit()
 {
-	//PHY_Timer = SetTimer("PHY_CoreTimer", PHY_TIMER_INTERVAL, true);
+	//SetTimer("PHY_CoreTimer", PHY_TIMER_INTERVAL, true);
 	
+	#if defined COLANDREAS
+	CA_Init();
+	#endif
 
 	cb_Connect = funcidx("PHY_OnPlayerConnect") != -1;
 	if(funcidx("PHY_OnGameModeInit") != -1)
 		return CallLocalFunction("PHY_OnGameModeInit", "");
 	return 1;
 }
+
 public OnFilterScriptInit()
 {
 	//PHY_Timer = SetTimer("PHY_CoreTimer", PHY_TIMER_INTERVAL, true);
-	
 
 	cb_Connect = funcidx("PHY_OnPlayerConnect") != -1;
 	if(funcidx("PHY_OnFilterScriptInit") != -1)
 		return CallLocalFunction("PHY_OnFilterScriptInit", "");
 	return 1;
 }
-
 
 public OnPlayerConnect(playerid)
 {
@@ -214,6 +226,7 @@ forward PHY_CoreTimer();
 public PHY_CoreTimer()
 {
 	new
+		#if defined COLANDREAS
 		Float:mod1,
 		Float:crx,
 		Float:cry,
@@ -221,6 +234,7 @@ public PHY_CoreTimer()
 		Float:cx,
 		Float:cy,
 		Float:cz,
+		#endif
 		
 		Float:x,
 		Float:y,
@@ -260,7 +274,8 @@ public PHY_CoreTimer()
 	{
 		if(PHY_Object[a][PHY_Properties] & PHY_OBJECT_USED)
 		{
-			GetObjectPos(a, x, y, z);
+			new obj_a = PHY_Object[a][PHY_DynamicObject];
+			GetDynamicObjectPos(obj_a, x, y, z);
 			
 			x1 = x + PHY_Object[a][PHY_VX] * (PHY_TIMER_INTERVAL/1000.0);
 			y1 = y + PHY_Object[a][PHY_VY] * (PHY_TIMER_INTERVAL/1000.0);
@@ -273,7 +288,7 @@ public PHY_CoreTimer()
 					if(PHY_Object[a][PHY_VZ] > 0)
 					{
 						PHY_Object[a][PHY_VZ] = -PHY_Object[a][PHY_VZ] * PHY_Object[a][PHY_BoundConst];
-						CallLocalFunction("PHY_OnObjectCollideWithZBound", "dd", a, 1);
+						CallLocalFunction("PHY_OnObjectCollideWithZBound", "dd", obj_a, 1);
 					}
 					z1 = PHY_Object[a][PHY_HighZBound];
 				}
@@ -282,7 +297,7 @@ public PHY_CoreTimer()
 					if(PHY_Object[a][PHY_VZ] < 0)
 					{
 						PHY_Object[a][PHY_VZ] = -PHY_Object[a][PHY_VZ] * PHY_Object[a][PHY_BoundConst];
-						CallLocalFunction("PHY_OnObjectCollideWithZBound", "dd", a, 0);
+						CallLocalFunction("PHY_OnObjectCollideWithZBound", "dd", obj_a, 0);
 					}
 					z1 = PHY_Object[a][PHY_LowZBound];
 				}
@@ -324,7 +339,8 @@ public PHY_CoreTimer()
 					{
 						if(a != b && PHY_Object[b][PHY_Properties] & PHY_OBJECT_USED && !PHY_IsObjectGhostWithObjects(b) && (!PHY_Object[a][PHY_World] || !PHY_Object[b][PHY_World] || PHY_Object[a][PHY_World] == PHY_Object[b][PHY_World]))
 						{
-							GetObjectPos(b, x2, y2, z2);
+							new obj_b = PHY_Object[b][PHY_DynamicObject];
+							GetDynamicObjectPos(obj_b, x2, y2, z2);
 							dx = x1 - x2;
 							dy = y1 - y2;
 							dz = (PHY_GetObjectMode(a) == PHY_MODE_3D && PHY_GetObjectMode(b) == PHY_MODE_3D) ? (z1 - z2) : (0.0);
@@ -378,7 +394,7 @@ public PHY_CoreTimer()
 									PHY_Object[b][PHY_VY] = newvy2;
 									PHY_Object[b][PHY_VZ] = newvz2;
 
-									CallLocalFunction("PHY_OnObjectCollideWithObject", "dd", a, b);
+									CallLocalFunction("PHY_OnObjectCOLWithObj", "dd", obj_a, obj_b);
 								}
 								
 								/*
@@ -411,7 +427,7 @@ public PHY_CoreTimer()
 									PHY_Object[b][PHY_VX] = newvx2 * floatcos(angle, degrees) - newvy2 * floatsin(angle, degrees);
 									PHY_Object[b][PHY_VY] = newvx2 * floatsin(angle, degrees) + newvy2 * floatcos(angle, degrees);
 
-									CallLocalFunction("PHY_OnObjectCollideWithObject", "dd", a, b);
+									CallLocalFunction("PHY_OnObjectCOLWithObj", "dd", a, b);
 								}
 								*/
 							}
@@ -419,6 +435,7 @@ public PHY_CoreTimer()
 					}
 				}
 
+				#if defined COLANDREAS
 				if(PHY_IsObjectUsingColAndreasBounds(a))
 				{
 					if(PHY_GetObjectMode(a) == PHY_MODE_3D)
@@ -448,9 +465,10 @@ public PHY_CoreTimer()
 						x1 = cx + (PHY_Object[a][PHY_Size] + 0.001) * floatcos(angle, degrees);
 						y1 = cy + (PHY_Object[a][PHY_Size] + 0.001) * floatsin(angle, degrees);
 						
-						CallLocalFunction("PHY_OnObjectCollideWithSAWorld", "dfff", a, cx, cy, cz);
+						CallLocalFunction("PHY_OnObjectCollideWithSAWorld", "dfff", obj_a, cx, cy, cz);
 					}
 				}
+				#endif
 				
 				if(!PHY_IsObjectGhostWithWalls(a))
 				{
@@ -480,7 +498,7 @@ public PHY_CoreTimer()
 									x1 = xclosest + (PHY_Object[a][PHY_Size] + 0.001) * floatcos(angle, degrees);
 									y1 = yclosest + (PHY_Object[a][PHY_Size] + 0.001) * floatsin(angle, degrees);
 
-									CallLocalFunction("PHY_OnObjectCollideWithWall", "dd", a, w);
+									CallLocalFunction("PHY_OnObjectCollideWithWall", "dd", obj_a, w);
 								}
 							}
 						}
@@ -519,7 +537,7 @@ public PHY_CoreTimer()
 											PHY_Object[a][PHY_VX] = newvx1 * floatcos(angle, degrees) - newvy1 * floatsin(angle, degrees);
 											PHY_Object[a][PHY_VY] = newvx1 * floatsin(angle, degrees) + newvy1 * floatcos(angle, degrees);
 
-											CallLocalFunction("PHY_OnObjectCollideWithCylinder", "dd", a, c);
+											CallLocalFunction("PHY_OnObjectCollideWithCylinder", "dd", obj_a, c);
 										}
 									}
 								}
@@ -528,6 +546,7 @@ public PHY_CoreTimer()
 						else
 							//Iter_SafeRemove(ITER_Cylinder, c, c);
 							Iter_Remove(ITER_Cylinder, c);
+							
 					}
 				}
 				if(PHY_IsObjectCollidingWithPlayers(a))
@@ -558,7 +577,7 @@ public PHY_CoreTimer()
 										PHY_Object[a][PHY_VX] = newvx1 * floatcos(angle, degrees) - newvy1 * floatsin(angle, degrees);
 										PHY_Object[a][PHY_VY] = newvx1 * floatsin(angle, degrees) + newvy1 * floatcos(angle, degrees);
 
-										CallLocalFunction("PHY_OnObjectCollideWithPlayer", "dd", a, i);
+										CallLocalFunction("PHY_OnObjectCollideWithPlayer", "dd", obj_a, i);
 									}
 								}
 							}
@@ -592,8 +611,8 @@ public PHY_CoreTimer()
 			PHY_Object[a][PHY_VY] += PHY_Object[a][PHY_AY];
 			PHY_Object[a][PHY_VZ] += PHY_Object[a][PHY_AZ];
 			
-			SetObjectPos(a, x1, y1, z1);
-			CallLocalFunction("PHY_OnObjectUpdate", "d", a);
+			SetDynamicObjectPos(obj_a, x1, y1, z1);
+			CallLocalFunction("PHY_OnObjectUpdate", "d", obj_a);
 		}
 		else
 			//Iter_SafeRemove(ITER_Object, a, a);
@@ -611,22 +630,28 @@ mode - PHY_MODE_3D or PHY_MODE_2D. */
 //stock PHY_InitObject(objectid, modelid = 0, Float:mass = 1.0, Float:size = FLOAT_NAN, mode = PHY_MODE_3D)
 stock PHY_InitObject(objectid, Float:mass = 1.0, Float:size, mode = PHY_MODE_3D)
 {
-	if(IsValidObject(objectid))
+	if(!IsValidDynamicObject(objectid)) return false;
+
+	new 
+		handleid = Iter_Free(ITER_Object);
+
+	if(handleid != ITER_NONE)
 	{
-		PHY_Object[objectid][PHY_Properties] = PHY_OBJECT_USED | (mode ? PHY_OBJECT_MODE : 0);
-		PHY_Object[objectid][PHY_Mass] = mass;
-		PHY_Object[objectid][PHY_World] = 0;
-		PHY_Object[objectid][PHY_VX] = 0;
-		PHY_Object[objectid][PHY_VY] = 0;
-		PHY_Object[objectid][PHY_VZ] = 0;
-		PHY_Object[objectid][PHY_Gravity] = 0;
+		PHY_Object[handleid][PHY_Properties] = PHY_OBJECT_USED | (mode ? PHY_OBJECT_MODE : 0);
+		PHY_Object[handleid][PHY_DynamicObject] = objectid;
+		PHY_Object[handleid][PHY_Mass] = mass;
+		PHY_Object[handleid][PHY_World] = 0;
+		PHY_Object[handleid][PHY_VX] = 0;
+		PHY_Object[handleid][PHY_VY] = 0;
+		PHY_Object[handleid][PHY_VZ] = 0;
+		PHY_Object[handleid][PHY_Gravity] = 0;
 
 		new
 			Float:x, Float:y, Float:z;
-		GetObjectPos(objectid, x, y, z);
-		PHY_Object[objectid][PHY_LowZBound] = z;
-		PHY_Object[objectid][PHY_HighZBound] = FLOAT_INFINITY;
-		PHY_Object[objectid][PHY_BoundConst] = 0;
+		GetDynamicObjectPos(objectid, x, y, z);
+		PHY_Object[handleid][PHY_LowZBound] = z;
+		PHY_Object[handleid][PHY_HighZBound] = FLOAT_INFINITY;
+		PHY_Object[handleid][PHY_BoundConst] = 0;
 		
 		//MODELSIZE 
 		/*if(size != size)
@@ -639,30 +664,35 @@ stock PHY_InitObject(objectid, Float:mass = 1.0, Float:size, mode = PHY_MODE_3D)
 			
 		PHY_Object[objectid][PHY_Size] = size;
 			
-		Iter_Add(ITER_Object, objectid);
-				
-		return 1;
+		Iter_Add(ITER_Object, handleid);
+		return true;
 	}
-	return 0;
+	return false;
 }
 
 /* Stops using physics for objectid (doesn't destroy it). */
 stock PHY_DeleteObject(objectid)
 {
-	PHY_Object[objectid][PHY_Properties] = 0;
-	// Iter_Remove(ITER_Object, objectid);
+	if(PHY_IsHandleValid(objectid))
+	{
+		PHY_Object[objectid][PHY_Properties] = 0;
+		// Iter_Remove(ITER_Object, objectid);
+	}
 	return 1;
 }
 
 /* Moves the object with vx, vy, vz velocities. */
 stock PHY_SetObjectVelocity(objectid, Float:vx, Float:vy, Float:vz = 0.0)
 {
-	if(PHY_Object[objectid][PHY_Properties] & PHY_OBJECT_USED)
+	if(PHY_IsHandleValid(objectid))
 	{
-		PHY_Object[objectid][PHY_VX] = vx;
-		PHY_Object[objectid][PHY_VY] = vy;
-		PHY_Object[objectid][PHY_VZ] = vz;
-		return 1;
+		if(PHY_Object[objectid][PHY_Properties] & PHY_OBJECT_USED)
+		{
+			PHY_Object[objectid][PHY_VX] = vx;
+			PHY_Object[objectid][PHY_VY] = vy;
+			PHY_Object[objectid][PHY_VZ] = vz;
+			return 1;
+		}
 	}
 	return 0;
 }
@@ -670,12 +700,15 @@ stock PHY_SetObjectVelocity(objectid, Float:vx, Float:vy, Float:vz = 0.0)
 /* Self-explanatory */
 stock PHY_GetObjectVelocity(objectid, &Float:vx, &Float:vy, &Float:vz)
 {
-	if(PHY_Object[objectid][PHY_Properties] & PHY_OBJECT_USED)
+	if(PHY_IsHandleValid(objectid))
 	{
-		vx = PHY_Object[objectid][PHY_VX];
-		vy = PHY_Object[objectid][PHY_VY];
-		vz = PHY_Object[objectid][PHY_VZ];
-		return 1;
+		if(PHY_Object[objectid][PHY_Properties] & PHY_OBJECT_USED)
+		{
+			vx = PHY_Object[objectid][PHY_VX];
+			vy = PHY_Object[objectid][PHY_VY];
+			vz = PHY_Object[objectid][PHY_VZ];
+			return 1;
+		}
 	}
 	return 0;
 }
@@ -683,12 +716,15 @@ stock PHY_GetObjectVelocity(objectid, &Float:vx, &Float:vy, &Float:vz)
 /* Sets the object's acceleration. */
 stock PHY_SetObjectAcceleration(objectid, Float:ax, Float:ay, Float:az = 0.0)
 {
-	if(PHY_Object[objectid][PHY_Properties] & PHY_OBJECT_USED)
+	if(PHY_IsHandleValid(objectid))
 	{
-		PHY_Object[objectid][PHY_AX] = ax;
-		PHY_Object[objectid][PHY_AY] = ay;
-		PHY_Object[objectid][PHY_AZ] = az;
-		return 1;
+		if(PHY_Object[objectid][PHY_Properties] & PHY_OBJECT_USED)
+		{
+			PHY_Object[objectid][PHY_AX] = ax;
+			PHY_Object[objectid][PHY_AY] = ay;
+			PHY_Object[objectid][PHY_AZ] = az;
+			return 1;
+		}
 	}
 	return 0;
 }
@@ -696,12 +732,15 @@ stock PHY_SetObjectAcceleration(objectid, Float:ax, Float:ay, Float:az = 0.0)
 /* Self-explanatory */
 stock PHY_GetObjectAcceleration(objectid, &Float:ax, &Float:ay, &Float:az)
 {
-	if(PHY_Object[objectid][PHY_Properties] & PHY_OBJECT_USED)
+	if(PHY_IsHandleValid(objectid))
 	{
-		ax = PHY_Object[objectid][PHY_AX];
-		ay = PHY_Object[objectid][PHY_AY];
-		az = PHY_Object[objectid][PHY_AZ];
-		return 1;
+		if(PHY_Object[objectid][PHY_Properties] & PHY_OBJECT_USED)
+		{
+			ax = PHY_Object[objectid][PHY_AX];
+			ay = PHY_Object[objectid][PHY_AY];
+			az = PHY_Object[objectid][PHY_AZ];
+			return 1;
+		}
 	}
 	return 0;
 }
@@ -709,10 +748,13 @@ stock PHY_GetObjectAcceleration(objectid, &Float:ax, &Float:ay, &Float:az)
 /* Self-explanatory */
 stock PHY_GetObjectSpeed(objectid, &Float:speed, _3D = 0)
 {
-	if(PHY_Object[objectid][PHY_Properties] & PHY_OBJECT_USED)
+	if(PHY_IsHandleValid(objectid))
 	{
-		speed = floatsqroot(PHY_Object[objectid][PHY_VX] * PHY_Object[objectid][PHY_VX] + PHY_Object[objectid][PHY_VY] * PHY_Object[objectid][PHY_VY] + _3D ? (PHY_Object[objectid][PHY_VZ] * PHY_Object[objectid][PHY_VZ]) : 0.0);
-		return 1;
+		if(PHY_Object[objectid][PHY_Properties] & PHY_OBJECT_USED)
+		{
+			speed = floatsqroot(PHY_Object[objectid][PHY_VX] * PHY_Object[objectid][PHY_VX] + PHY_Object[objectid][PHY_VY] * PHY_Object[objectid][PHY_VY] + _3D ? (PHY_Object[objectid][PHY_VZ] * PHY_Object[objectid][PHY_VZ]) : 0.0);
+			return 1;
+		}
 	}
 	return 0;
 }
@@ -720,10 +762,13 @@ stock PHY_GetObjectSpeed(objectid, &Float:speed, _3D = 0)
 /* Self-explanatory */
 stock PHY_GetObjectMoveAngle(objectid, &Float:moveangle)
 {
-	if(PHY_Object[objectid][PHY_Properties] & PHY_OBJECT_USED)
+	if(PHY_IsHandleValid(objectid))
 	{
-		moveangle = atan2(PHY_Object[objectid][PHY_VY], PHY_Object[objectid][PHY_VX]) - 90.0;
-		return 1;
+		if(PHY_Object[objectid][PHY_Properties] & PHY_OBJECT_USED)
+		{
+			moveangle = atan2(PHY_Object[objectid][PHY_VY], PHY_Object[objectid][PHY_VX]) - 90.0;
+			return 1;
+		}
 	}
 	return 0;
 }
@@ -731,65 +776,72 @@ stock PHY_GetObjectMoveAngle(objectid, &Float:moveangle)
 /* Sets ColAndreas mode for the object. Modes: 0 none, 1 collisions + z bounds, 2 collisions only, 3 z bounds only*/
 stock PHY_UseColAndreas(objectid, mode = 1)
 {
-	if(PHY_Object[objectid][PHY_Properties] & PHY_OBJECT_USED)
+	if(PHY_IsHandleValid(objectid))
 	{
-		new Float:x, Float:y, Float:z;
-		GetObjectPos(objectid, x, y, z);
-		
-		switch(mode)
+		if(PHY_Object[objectid][PHY_Properties] & PHY_OBJECT_USED)
 		{
-			case 0:
+			new Float:x, Float:y, Float:z;
+			GetDynamicObjectPos(objectid, x, y, z);
+			
+			switch(mode)
 			{
-				PHY_Object[objectid][PHY_Properties] &= ~PHY_OBJECT_COLANDREAS_BOUNDS;
-				PHY_Object[objectid][PHY_Properties] &= ~PHY_OBJECT_COLANDREAS_COLLS;
+				case 0:
+				{
+					PHY_Object[objectid][PHY_Properties] &= ~PHY_OBJECT_COLANDREAS_BOUNDS;
+					PHY_Object[objectid][PHY_Properties] &= ~PHY_OBJECT_COLANDREAS_COLLS;
+				}
+				case 1:
+				{
+					PHY_Object[objectid][PHY_Properties] |= PHY_OBJECT_COLANDREAS_BOUNDS;
+					PHY_Object[objectid][PHY_Properties] |= PHY_OBJECT_COLANDREAS_COLLS;
+					PHY_UpdateBounds(objectid, x, y, z);
+				}
+				case 2:
+				{
+					PHY_Object[objectid][PHY_Properties] &= ~PHY_OBJECT_COLANDREAS_BOUNDS;
+					PHY_Object[objectid][PHY_Properties] |= PHY_OBJECT_COLANDREAS_COLLS;
+				}
+				case 3:
+				{
+					PHY_Object[objectid][PHY_Properties] |= PHY_OBJECT_COLANDREAS_BOUNDS;
+					PHY_Object[objectid][PHY_Properties] &= ~PHY_OBJECT_COLANDREAS_COLLS;
+					PHY_UpdateBounds(objectid, x, y, z);
+				}
 			}
-			case 1:
-			{
-				PHY_Object[objectid][PHY_Properties] |= PHY_OBJECT_COLANDREAS_BOUNDS;
-				PHY_Object[objectid][PHY_Properties] |= PHY_OBJECT_COLANDREAS_COLLS;
-				PHY_UpdateBounds(objectid, x, y, z);
-			}
-			case 2:
-			{
-				PHY_Object[objectid][PHY_Properties] &= ~PHY_OBJECT_COLANDREAS_BOUNDS;
-				PHY_Object[objectid][PHY_Properties] |= PHY_OBJECT_COLANDREAS_COLLS;
-			}
-			case 3:
-			{
-				PHY_Object[objectid][PHY_Properties] |= PHY_OBJECT_COLANDREAS_BOUNDS;
-				PHY_Object[objectid][PHY_Properties] &= ~PHY_OBJECT_COLANDREAS_COLLS;
-				PHY_UpdateBounds(objectid, x, y, z);
-			}
+			return 1;
 		}
-		return 1;
 	}
 	return 0;
 }
 
 /* Starts rolling the object when it moves of toggle = 1 or stops if toggle = 0.
 rollingmode = PHY_ROLLING_MODE_DEFAULT (Euler angles) or PHY_ROLLING_MODE_ADVANCED (Quaternions)
-When using advanced rolling mode, if you manually use SetObjectRot in your script, it is adviced to
+When using advanced rolling mode, if you manually use SetDynamicObjectRot in your script, it is adviced to
 call PHY_RollObject again, in order to recalculate its quaternion angles.*/
 stock PHY_RollObject(objectid, toggle = 1, rollingmode = PHY_ROLLING_MODE_DEFAULT)
 {
-	if(PHY_Object[objectid][PHY_Properties] & PHY_OBJECT_USED)
+	if(PHY_IsHandleValid(objectid))
 	{
-		if(toggle)
-			PHY_Object[objectid][PHY_Properties] |= PHY_OBJECT_ROLL;
-		else
-			PHY_Object[objectid][PHY_Properties] &= ~PHY_OBJECT_ROLL;
-			
-		if(rollingmode == PHY_ROLLING_MODE_ADVANCED){
-			PHY_Object[objectid][PHY_Properties] |= PHY_OBJECT_ROLLING_MODE;
-			
-			new
-				Float:rx, Float:ry, Float:rz;
-			GetObjectRot(objectid, rx, ry, rz);
-			PHY_GetRotationQuaternion(rx, ry, rz, PHY_Object[objectid][PHY_QW], PHY_Object[objectid][PHY_QX], PHY_Object[objectid][PHY_QY], PHY_Object[objectid][PHY_QZ]);
+		if(PHY_Object[objectid][PHY_Properties] & PHY_OBJECT_USED)
+		{
+			if(toggle)
+				PHY_Object[objectid][PHY_Properties] |= PHY_OBJECT_ROLL;
+			else
+				PHY_Object[objectid][PHY_Properties] &= ~PHY_OBJECT_ROLL;
+				
+			if(rollingmode == PHY_ROLLING_MODE_ADVANCED){
+				PHY_Object[objectid][PHY_Properties] |= PHY_OBJECT_ROLLING_MODE;
+				
+				new
+					Float:rx, Float:ry, Float:rz, obj_a = PHY_Object[objectid][PHY_DynamicObject];
+
+				GetDynamicObjectRot(obj_a, rx, ry, rz);
+				PHY_GetRotationQuaternion(rx, ry, rz, PHY_Object[objectid][PHY_QW], PHY_Object[objectid][PHY_QX], PHY_Object[objectid][PHY_QY], PHY_Object[objectid][PHY_QZ]);
+			}
+			else
+				PHY_Object[objectid][PHY_Properties] &= ~PHY_OBJECT_ROLLING_MODE;
+			return 1;
 		}
-		else
-			PHY_Object[objectid][PHY_Properties] &= ~PHY_OBJECT_ROLLING_MODE;
-		return 1;
 	}
 	return 0;
 }
@@ -797,11 +849,14 @@ stock PHY_RollObject(objectid, toggle = 1, rollingmode = PHY_ROLLING_MODE_DEFAUL
 /* Applies friction to the object when it moves on the floor. */
 stock PHY_SetObjectFriction(objectid, Float:friction)
 {
-	if(PHY_Object[objectid][PHY_Properties] & PHY_OBJECT_USED)
+	if(PHY_IsHandleValid(objectid))
 	{
-		if(friction >= 0.0)
-			PHY_Object[objectid][PHY_Friction] = friction;
-		return 1;
+		if(PHY_Object[objectid][PHY_Properties] & PHY_OBJECT_USED)
+		{
+			if(friction >= 0.0)
+				PHY_Object[objectid][PHY_Friction] = friction;
+			return 1;
+		}
 	}
 	return 0;
 }
@@ -809,11 +864,14 @@ stock PHY_SetObjectFriction(objectid, Float:friction)
 /* Applies air resistance to the object when it moves. */
 stock PHY_SetObjectAirResistance(objectid, Float:resistance)
 {
-	if(PHY_Object[objectid][PHY_Properties] & PHY_OBJECT_USED)
+	if(PHY_IsHandleValid(objectid))
 	{
-		if(0.0 <= resistance <= 1.0)
-			PHY_Object[objectid][PHY_AirResistance] = resistance;
-		return 1;
+		if(PHY_Object[objectid][PHY_Properties] & PHY_OBJECT_USED)
+		{
+			if(0.0 <= resistance <= 1.0)
+				PHY_Object[objectid][PHY_AirResistance] = resistance;
+			return 1;
+		}
 	}
 	return 0;
 }
@@ -826,14 +884,17 @@ constant - It should be from 0.0 to 1.0. If it is 1.0 the object doesn't lose ve
 if it is 0.0 the object stops when it bounces. It could be a middle ground.*/
 stock PHY_SetObjectZBound(objectid, Float:low = FLOAT_NAN, Float:high = FLOAT_NAN, Float:constant = 0.0)
 {
-	if(PHY_Object[objectid][PHY_Properties] & PHY_OBJECT_USED)
+	if(PHY_IsHandleValid(objectid))
 	{
-		if(low == low)
-			PHY_Object[objectid][PHY_LowZBound] = low;
-		if(high == high)
-			PHY_Object[objectid][PHY_HighZBound] = high;
-		PHY_Object[objectid][PHY_BoundConst] = constant;
-		return 1;
+		if(PHY_Object[objectid][PHY_Properties] & PHY_OBJECT_USED)
+		{
+			if(low == low)
+				PHY_Object[objectid][PHY_LowZBound] = low;
+			if(high == high)
+				PHY_Object[objectid][PHY_HighZBound] = high;
+			PHY_Object[objectid][PHY_BoundConst] = constant;
+			return 1;
+		}
 	}
 	return 0;
 }
@@ -841,10 +902,13 @@ stock PHY_SetObjectZBound(objectid, Float:low = FLOAT_NAN, Float:high = FLOAT_NA
 /* Sets the gravity's acceleration that the object is subjected to. */
 stock PHY_SetObjectGravity(objectid, Float:gravity)
 {
-	if(PHY_Object[objectid][PHY_Properties] & PHY_OBJECT_USED)
+	if(PHY_IsHandleValid(objectid))
 	{
-		PHY_Object[objectid][PHY_Gravity] = gravity;
-		return 1;
+		if(PHY_Object[objectid][PHY_Properties] & PHY_OBJECT_USED)
+		{
+			PHY_Object[objectid][PHY_Gravity] = gravity;
+			return 1;
+		}
 	}
 	return 0;
 }
@@ -852,10 +916,13 @@ stock PHY_SetObjectGravity(objectid, Float:gravity)
 /* Object and walls collide only if the are in the same world or one of them is in the world 0 (default). */
 stock PHY_SetObjectWorld(objectid, world)
 {
-	if(PHY_Object[objectid][PHY_Properties] & PHY_OBJECT_USED)
+	if(PHY_IsHandleValid(objectid))
 	{
-		PHY_Object[objectid][PHY_World] = world;
-		return 1;
+		if(PHY_Object[objectid][PHY_Properties] & PHY_OBJECT_USED)
+		{
+			PHY_Object[objectid][PHY_World] = world;
+			return 1;
+		}
 	}
 	return 0;
 }
@@ -867,19 +934,22 @@ if it is 0.0 the object stops when it bounces. It could be a middle ground.
 - zoffsetlow/zoffsethigh - The max Z distance (downward/upward) at which the object collides with the player. */
 stock PHY_ToggleObjectPlayerColls(objectid, toggle = 1, Float:constant = 1.0, Float:distoffset = 0.8, Float:zoffsetlow = 1.0, Float:zoffsethigh = 1.0)
 {
-	if(PHY_Object[objectid][PHY_Properties] & PHY_OBJECT_USED)
+	if(PHY_IsHandleValid(objectid))
 	{
-		if(toggle)
+		if(PHY_Object[objectid][PHY_Properties] & PHY_OBJECT_USED)
 		{
-			PHY_Object[objectid][PHY_Properties] |= PHY_OBJECT_PLAYER_COLLISIONS;
-			PHY_Object[objectid][PHY_PlayerConst] = constant;
-			PHY_Object[objectid][PHY_PlayerDist] = distoffset;
-			PHY_Object[objectid][PHY_PlayerLowZ] = zoffsetlow;
-			PHY_Object[objectid][PHY_PlayerHighZ] = zoffsethigh;
+			if(toggle)
+			{
+				PHY_Object[objectid][PHY_Properties] |= PHY_OBJECT_PLAYER_COLLISIONS;
+				PHY_Object[objectid][PHY_PlayerConst] = constant;
+				PHY_Object[objectid][PHY_PlayerDist] = distoffset;
+				PHY_Object[objectid][PHY_PlayerLowZ] = zoffsetlow;
+				PHY_Object[objectid][PHY_PlayerHighZ] = zoffsethigh;
+			}
+			else
+				PHY_Object[objectid][PHY_Properties] &= ~PHY_OBJECT_PLAYER_COLLISIONS;
+			return 1;
 		}
-		else
-			PHY_Object[objectid][PHY_Properties] &= ~PHY_OBJECT_PLAYER_COLLISIONS;
-		return 1;
 	}
 	return 0;
 }
@@ -887,50 +957,57 @@ stock PHY_ToggleObjectPlayerColls(objectid, toggle = 1, Float:constant = 1.0, Fl
 /* Used internally to rotate the objects */
 stock PHY_ApplyRotation(objectid, Float:speed, Float:moveangle)
 {
-	new
-		Float:rx, Float:ry, Float:rz;
+	if(PHY_IsHandleValid(objectid))
+	{
+		new
+			Float:rx, Float:ry, Float:rz;
 
-	GetObjectRot(objectid, rx, ry, rz);
-	rx -= speed * (PHY_TIMER_INTERVAL/1000.0) * (180.0/3.14159) / PHY_Object[objectid][PHY_Size];
-	if(rx < 0.0)
-		rx += 360.0;
-	rz = moveangle;
-		
-	SetObjectRot(objectid, rx, ry, rz);
-
+		new a_obj = PHY_Object[objectid][PHY_DynamicObject];
+		GetDynamicObjectRot(a_obj, rx, ry, rz);
+		rx -= speed * (PHY_TIMER_INTERVAL/1000.0) * (180.0/3.14159) / PHY_Object[objectid][PHY_Size];
+		if(rx < 0.0)
+			rx += 360.0;
+		rz = moveangle;
+			
+		SetDynamicObjectRot(a_obj, rx, ry, rz);
+	}
 	return 1;
 }
 
 /* New mode of rolling, based on Quaternions */
 stock PHY_ApplyQuaternionsRotation(objectid, Float:speed, Float:moveangle)
 {
-	new
-		Float:rx, Float:ry, Float:rz,
-		Float:dx, Float:dy,
-		Float:q_roll[4],
-		Float:vx, Float:vy, Float:vz,
-		Float:quat[4];
-		
-	dx = floatsin(-moveangle, degrees);
-	dy = floatcos(-moveangle, degrees);
+	if(PHY_IsHandleValid(objectid))
+	{
+		new
+			Float:rx, Float:ry, Float:rz,
+			Float:dx, Float:dy,
+			Float:q_roll[4],
+			Float:vx, Float:vy, Float:vz,
+			Float:quat[4];
+			
+		dx = floatsin(-moveangle, degrees);
+		dy = floatcos(-moveangle, degrees);
 
-	PHY_vectorcrossp(dx, dy, 0.0, 0.0, 0.0, 1.0, vx, vy, vz);
-	PHY_QuatFromAxisAngle(vx, vy, vz, speed * (PHY_TIMER_INTERVAL/1000.0) * (180.0/3.14159) / PHY_Object[objectid][PHY_Size], q_roll[0], q_roll[1], q_roll[2], q_roll[3]);
-	
-	quat[0] = PHY_Object[objectid][PHY_QW];
-	quat[1] = PHY_Object[objectid][PHY_QX];
-	quat[2] = PHY_Object[objectid][PHY_QY];
-	quat[3] = PHY_Object[objectid][PHY_QZ];
-	PHY_GetQuatProduct(quat, q_roll, quat);
-	
-	PHY_Object[objectid][PHY_QW] = quat[0];
-	PHY_Object[objectid][PHY_QX] = quat[1];
-	PHY_Object[objectid][PHY_QY] = quat[2];
-	PHY_Object[objectid][PHY_QZ] = quat[3];
-	
-	PHY_GetQuaternionAngles(quat[0], quat[1], quat[2], quat[3], rx, ry, rz);
-	
-	SetObjectRot(objectid, rx, ry, rz);
+		PHY_vectorcrossp(dx, dy, 0.0, 0.0, 0.0, 1.0, vx, vy, vz);
+		PHY_QuatFromAxisAngle(vx, vy, vz, speed * (PHY_TIMER_INTERVAL/1000.0) * (180.0/3.14159) / PHY_Object[objectid][PHY_Size], q_roll[0], q_roll[1], q_roll[2], q_roll[3]);
+		
+		quat[0] = PHY_Object[objectid][PHY_QW];
+		quat[1] = PHY_Object[objectid][PHY_QX];
+		quat[2] = PHY_Object[objectid][PHY_QY];
+		quat[3] = PHY_Object[objectid][PHY_QZ];
+		PHY_GetQuatProduct(quat, q_roll, quat);
+		
+		PHY_Object[objectid][PHY_QW] = quat[0];
+		PHY_Object[objectid][PHY_QX] = quat[1];
+		PHY_Object[objectid][PHY_QY] = quat[2];
+		PHY_Object[objectid][PHY_QZ] = quat[3];
+		
+		PHY_GetQuaternionAngles(quat[0], quat[1], quat[2], quat[3], rx, ry, rz);
+		
+		new a_obj = PHY_Object[objectid][PHY_DynamicObject];
+		SetDynamicObjectRot(a_obj, rx, ry, rz);
+	}
 	return 1;
 }
 
@@ -1080,20 +1157,25 @@ stock check_segment_intersection(Float:x1, Float:y1, Float:x2, Float:y2, Float:x
 	return ((0 - r < proj < v1_len + r) && ((x - xc) * (x - xc) + (y - yc) * (y - yc) < (r * r)));
 }
 
+#if defined COLANDREAS
 stock PHY_UpdateBounds(objectid, Float:x, Float:y, Float:z)
 {
-	new Float:unused, Float:bound;
-	// CA_RayCastLineAngle(x, y, z, x, y, z - 1000.0, unused, unused, bound, PHY_Object[objectid][PHY_LowZRX], PHY_Object[objectid][PHY_LowZRY], unused);
-	CA_RayCastLine(x, y, z, x, y, z - 1000.0, unused, unused, bound);
-	if(bound != 0.0 && bound == bound)
-		PHY_Object[objectid][PHY_LowZBound] = bound + PHY_Object[objectid][PHY_Size];
-	bound = 0.0;
-	CA_RayCastLine(x, y, z, x, y, z + 1000.0, unused, unused, bound);
-	if(bound > PHY_Object[objectid][PHY_LowZBound] && bound == bound)
-		PHY_Object[objectid][PHY_HighZBound] = bound - PHY_Object[objectid][PHY_Size];
-	else
-		PHY_Object[objectid][PHY_HighZBound] = FLOAT_INFINITY;
+	if(PHY_IsHandleValid(objectid))
+	{
+		new Float:unused, Float:bound;
+		// CA_RayCastLineAngle(x, y, z, x, y, z - 1000.0, unused, unused, bound, PHY_Object[objectid][PHY_LowZRX], PHY_Object[objectid][PHY_LowZRY], unused);
+		CA_RayCastLine(x, y, z, x, y, z - 1000.0, unused, unused, bound);
+		if(bound != 0.0 && bound == bound)
+			PHY_Object[objectid][PHY_LowZBound] = bound + PHY_Object[objectid][PHY_Size];
+		bound = 0.0;
+		CA_RayCastLine(x, y, z, x, y, z + 1000.0, unused, unused, bound);
+		if(bound > PHY_Object[objectid][PHY_LowZBound] && bound == bound)
+			PHY_Object[objectid][PHY_HighZBound] = bound - PHY_Object[objectid][PHY_Size];
+		else
+			PHY_Object[objectid][PHY_HighZBound] = FLOAT_INFINITY;
+	}
 }
+#endif
 
 stock FixRot(&Float:x, &Float:y, &Float:z)
 {
@@ -1256,6 +1338,16 @@ stock PHY_GetRotationQuaternion(Float:x, Float:y, Float:z, &Float:qw, &Float:qx,
 	qz = cx * cy * sz - sx * sy * cz;
 }
 
+stock PHY_IsHandleValid(&objectid) 
+{
+	foreach(new i: ITER_Object) {
+		if(PHY_Object[i][PHY_DynamicObject] != objectid) continue;
+		objectid = i;
+		return true;
+	}
+	return false;
+}
+
 
 #if defined _ALS_OnGameModeInit
 	#undef OnGameModeInit
@@ -1266,7 +1358,6 @@ stock PHY_GetRotationQuaternion(Float:x, Float:y, Float:z, &Float:qw, &Float:qx,
 
 forward OnGameModeInit();
 
-
 #if defined _ALS_OnFilterScriptInit
 	#undef OnFilterScriptInit
 #else
@@ -1275,7 +1366,6 @@ forward OnGameModeInit();
 #define OnFilterScriptInit PHY_OnFilterScriptInit
 
 forward OnFilterScriptInit();
-
 
 #if defined _ALS_OnPlayerConnect
 	#undef OnPlayerConnect
