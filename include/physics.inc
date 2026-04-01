@@ -242,32 +242,32 @@ public PHY_CoreTimer()
 		Float:x1,
 		Float:y1,
 		Float:z1,
-		Float:xclosest,
-		Float:yclosest,
+		/*Float:xclosest,
+		Float:yclosest,*/
 		Float:x2,
 		Float:y2,
 		Float:z2,
 		Float:speed,
 		Float:dx,
 		Float:dy,
-		Float:dz,
+		/*Float:dz,*/
 		Float:dist,
 		Float:maxdist,
 		Float:angle,
 		Float:moveangle,
-		Float:dvx,
+		/*Float:dvx,
 		Float:dvy,
-		Float:dvz,
+		Float:dvz,*/
 		Float:mag,
-		Float:tmpvx,
+		/*Float:tmpvx,
 		Float:tmpvy,
-		Float:tmpvz,
+		Float:tmpvz,*/
 		Float:newvy1,
-		Float:newvy2,
-		Float:newvx1,
+		/*Float:newvy2,*/
+		Float:newvx1/*,
 		Float:newvx2,
 		Float:newvz1,
-		Float:newvz2
+		Float:newvz2*/
 		/*Float:sx,
 		Float:sy*/;
 	foreach(new a : ITER_Object)
@@ -333,7 +333,7 @@ public PHY_CoreTimer()
 				z1 = z;
 			if(PHY_IsObjectMoving(a))
 			{
-				if(!PHY_IsObjectGhostWithObjects(a))
+				/*if(!PHY_IsObjectGhostWithObjects(a))
 				{
 					foreach(new b : ITER_Object)
 					{
@@ -397,43 +397,10 @@ public PHY_CoreTimer()
 									CallLocalFunction("PHY_OnObjectCOLWithObj", "dd", obj_a, obj_b);
 								}
 								
-								/*
-								// Old algorithm, works good only in 2D
-								dvx = PHY_Object[a][PHY_VX] - PHY_Object[b][PHY_VX];
-								dvy = PHY_Object[a][PHY_VY] - PHY_Object[b][PHY_VY];
-								mag = dvx * dx + dvy * dy;
-								
-								if(mag < 0.0)
-								{
-									angle = -atan2(dy, dx);
-									tmpvx1 = PHY_Object[a][PHY_VX] * floatcos(angle, degrees) - PHY_Object[a][PHY_VY] * floatsin(angle, degrees);
-									newvy1 = PHY_Object[a][PHY_VX] * floatsin(angle, degrees) + PHY_Object[a][PHY_VY] * floatcos(angle, degrees);
-									tmpvx2 = PHY_Object[b][PHY_VX] * floatcos(angle, degrees) - PHY_Object[b][PHY_VY] * floatsin(angle, degrees);
-									newvy2 = PHY_Object[b][PHY_VX] * floatsin(angle, degrees) + PHY_Object[b][PHY_VY] * floatcos(angle, degrees);
-
-									if(PHY_Object[a][PHY_Mass] == FLOAT_INFINITY)
-										newvx2 = -tmpvx2;
-									else if(PHY_Object[b][PHY_Mass] == FLOAT_INFINITY)
-										newvx1 = -tmpvx1;
-									else
-									{
-										newvx1 = ((PHY_Object[a][PHY_Mass] - PHY_Object[b][PHY_Mass]) * tmpvx1 + 2 * PHY_Object[b][PHY_Mass] * tmpvx2) / (PHY_Object[a][PHY_Mass] + PHY_Object[b][PHY_Mass]);
-										newvx2 = ((PHY_Object[b][PHY_Mass] - PHY_Object[a][PHY_Mass]) * tmpvx2 + 2 * PHY_Object[a][PHY_Mass] * tmpvx1) / (PHY_Object[a][PHY_Mass] + PHY_Object[b][PHY_Mass]);
-									}
-
-									angle = -angle;
-									PHY_Object[a][PHY_VX] = newvx1 * floatcos(angle, degrees) - newvy1 * floatsin(angle, degrees);
-									PHY_Object[a][PHY_VY] = newvx1 * floatsin(angle, degrees) + newvy1 * floatcos(angle, degrees);
-									PHY_Object[b][PHY_VX] = newvx2 * floatcos(angle, degrees) - newvy2 * floatsin(angle, degrees);
-									PHY_Object[b][PHY_VY] = newvx2 * floatsin(angle, degrees) + newvy2 * floatcos(angle, degrees);
-
-									CallLocalFunction("PHY_OnObjectCOLWithObj", "dd", a, b);
-								}
-								*/
 							}
 						}
 					}
-				}
+				}*/
 
 				#if defined COLANDREAS
 				if(PHY_IsObjectUsingColAndreasBounds(a))
@@ -470,7 +437,7 @@ public PHY_CoreTimer()
 				}
 				#endif
 				
-				if(!PHY_IsObjectGhostWithWalls(a))
+				/*if(!PHY_IsObjectGhostWithWalls(a))
 				{
 					foreach(new w : ITER_Wall)
 					{
@@ -482,7 +449,7 @@ public PHY_CoreTimer()
 								//dist = (PHY_Wall[w][PHY_A] * x1 + PHY_Wall[w][PHY_B] * y1 + PHY_Wall[w][PHY_C])/floatsqroot(PHY_Wall[w][PHY_A] * PHY_Wall[w][PHY_A] + PHY_Wall[w][PHY_B] * PHY_Wall[w][PHY_B]);
 								angle = PHY_Wall[w][PHY_ANG];
 								if(PHY_Wall[w][PHY_Z1] - PHY_Object[a][PHY_Size] < z1 < PHY_Wall[w][PHY_Z2] + PHY_Object[a][PHY_Size] &&
-								(check_segment_intersection(PHY_Wall[w][PHY_X1], PHY_Wall[w][PHY_Y1], PHY_Wall[w][PHY_X2], PHY_Wall[w][PHY_Y2], x1, y1, PHY_Object[a][PHY_Size], xclosest, yclosest) || /* && floatabs(dist) < PHY_Object[a][PHY_Size]*/
+								(check_segment_intersection(PHY_Wall[w][PHY_X1], PHY_Wall[w][PHY_Y1], PHY_Wall[w][PHY_X2], PHY_Wall[w][PHY_Y2], x1, y1, PHY_Object[a][PHY_Size], xclosest, yclosest) || 
 								check_segment_intersection(PHY_Wall[w][PHY_X1], PHY_Wall[w][PHY_Y1], PHY_Wall[w][PHY_X2], PHY_Wall[w][PHY_Y2], (x + x1)/2, (y + y1)/2, PHY_Object[a][PHY_Size], xclosest, yclosest)))
 								{
 									//mag = y1 + PHY_Object[a][PHY_Size] * floatcos(-moveangle, degrees) - (x1 + PHY_Object[a][PHY_Size] * floatsin(-moveangle, degrees)) * PHY_Wall[w][PHY_M] - PHY_Wall[w][PHY_Q];
@@ -506,8 +473,8 @@ public PHY_CoreTimer()
 							//Iter_SafeRemove(ITER_Wall, w, w);
 							Iter_Remove(ITER_Wall, w);
 					}
-				}
-				if(!PHY_IsObjectGhostWithCylinders(a))
+				}*/
+				/*if(!PHY_IsObjectGhostWithCylinders(a))
 				{
 					foreach(new c : ITER_Cylinder)
 					{
@@ -548,7 +515,7 @@ public PHY_CoreTimer()
 							Iter_Remove(ITER_Cylinder, c);
 							
 					}
-				}
+				}*/
 				if(PHY_IsObjectCollidingWithPlayers(a))
 				{
 					foreach(new i : Player)
