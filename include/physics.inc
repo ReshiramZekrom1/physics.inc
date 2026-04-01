@@ -662,7 +662,7 @@ stock PHY_InitObject(objectid, Float:mass = 1.0, Float:size, mode = PHY_MODE_3D)
 		else
 			PHY_Object[objectid][PHY_Size] = size;*/
 			
-		PHY_Object[objectid][PHY_Size] = size;
+		PHY_Object[handleid][PHY_Size] = size;
 			
 		Iter_Add(ITER_Object, handleid);
 		return true;
@@ -676,7 +676,7 @@ stock PHY_DeleteObject(objectid)
 	if(PHY_IsHandleValid(objectid))
 	{
 		PHY_Object[objectid][PHY_Properties] = 0;
-		// Iter_Remove(ITER_Object, objectid);
+		Iter_Remove(ITER_Object, objectid);
 	}
 	return 1;
 }
@@ -957,57 +957,51 @@ stock PHY_ToggleObjectPlayerColls(objectid, toggle = 1, Float:constant = 1.0, Fl
 /* Used internally to rotate the objects */
 stock PHY_ApplyRotation(objectid, Float:speed, Float:moveangle)
 {
-	if(PHY_IsHandleValid(objectid))
-	{
-		new
-			Float:rx, Float:ry, Float:rz;
+	new
+		Float:rx, Float:ry, Float:rz;
 
-		new a_obj = PHY_Object[objectid][PHY_DynamicObject];
-		GetDynamicObjectRot(a_obj, rx, ry, rz);
-		rx -= speed * (PHY_TIMER_INTERVAL/1000.0) * (180.0/3.14159) / PHY_Object[objectid][PHY_Size];
-		if(rx < 0.0)
-			rx += 360.0;
-		rz = moveangle;
-			
-		SetDynamicObjectRot(a_obj, rx, ry, rz);
-	}
+	new a_obj = PHY_Object[objectid][PHY_DynamicObject];
+	GetDynamicObjectRot(a_obj, rx, ry, rz);
+	rx -= speed * (PHY_TIMER_INTERVAL/1000.0) * (180.0/3.14159) / PHY_Object[objectid][PHY_Size];
+	if(rx < 0.0)
+		rx += 360.0;
+	rz = moveangle;
+		
+	SetDynamicObjectRot(a_obj, rx, ry, rz);
 	return 1;
 }
 
 /* New mode of rolling, based on Quaternions */
 stock PHY_ApplyQuaternionsRotation(objectid, Float:speed, Float:moveangle)
 {
-	if(PHY_IsHandleValid(objectid))
-	{
-		new
-			Float:rx, Float:ry, Float:rz,
-			Float:dx, Float:dy,
-			Float:q_roll[4],
-			Float:vx, Float:vy, Float:vz,
-			Float:quat[4];
-			
-		dx = floatsin(-moveangle, degrees);
-		dy = floatcos(-moveangle, degrees);
+	new
+		Float:rx, Float:ry, Float:rz,
+		Float:dx, Float:dy,
+		Float:q_roll[4],
+		Float:vx, Float:vy, Float:vz,
+		Float:quat[4];
+		
+	dx = floatsin(-moveangle, degrees);
+	dy = floatcos(-moveangle, degrees);
 
-		PHY_vectorcrossp(dx, dy, 0.0, 0.0, 0.0, 1.0, vx, vy, vz);
-		PHY_QuatFromAxisAngle(vx, vy, vz, speed * (PHY_TIMER_INTERVAL/1000.0) * (180.0/3.14159) / PHY_Object[objectid][PHY_Size], q_roll[0], q_roll[1], q_roll[2], q_roll[3]);
-		
-		quat[0] = PHY_Object[objectid][PHY_QW];
-		quat[1] = PHY_Object[objectid][PHY_QX];
-		quat[2] = PHY_Object[objectid][PHY_QY];
-		quat[3] = PHY_Object[objectid][PHY_QZ];
-		PHY_GetQuatProduct(quat, q_roll, quat);
-		
-		PHY_Object[objectid][PHY_QW] = quat[0];
-		PHY_Object[objectid][PHY_QX] = quat[1];
-		PHY_Object[objectid][PHY_QY] = quat[2];
-		PHY_Object[objectid][PHY_QZ] = quat[3];
-		
-		PHY_GetQuaternionAngles(quat[0], quat[1], quat[2], quat[3], rx, ry, rz);
-		
-		new a_obj = PHY_Object[objectid][PHY_DynamicObject];
-		SetDynamicObjectRot(a_obj, rx, ry, rz);
-	}
+	PHY_vectorcrossp(dx, dy, 0.0, 0.0, 0.0, 1.0, vx, vy, vz);
+	PHY_QuatFromAxisAngle(vx, vy, vz, speed * (PHY_TIMER_INTERVAL/1000.0) * (180.0/3.14159) / PHY_Object[objectid][PHY_Size], q_roll[0], q_roll[1], q_roll[2], q_roll[3]);
+	
+	quat[0] = PHY_Object[objectid][PHY_QW];
+	quat[1] = PHY_Object[objectid][PHY_QX];
+	quat[2] = PHY_Object[objectid][PHY_QY];
+	quat[3] = PHY_Object[objectid][PHY_QZ];
+	PHY_GetQuatProduct(quat, q_roll, quat);
+	
+	PHY_Object[objectid][PHY_QW] = quat[0];
+	PHY_Object[objectid][PHY_QX] = quat[1];
+	PHY_Object[objectid][PHY_QY] = quat[2];
+	PHY_Object[objectid][PHY_QZ] = quat[3];
+	
+	PHY_GetQuaternionAngles(quat[0], quat[1], quat[2], quat[3], rx, ry, rz);
+	
+	new a_obj = PHY_Object[objectid][PHY_DynamicObject];
+	SetDynamicObjectRot(a_obj, rx, ry, rz);
 	return 1;
 }
 
